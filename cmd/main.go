@@ -46,27 +46,25 @@ func Run(db *gorm.DB, originalTest, newWayTest fetcher.InputRequestParamFindRout
 	}
 
 	result := entity.TestResult{
-		RunningTime: math.Max(responseTimeOfOriginalFetch.Seconds(), responseTimeOfNewWayFetch.Seconds()),
-		MaxHops:     6,
-		MaxPaths:    2,
-		MinPartUsd:  500,
-
-		OldNumPaths: uint8(len(originalResult.Swaps)),
-		OldNumHops:  uint8(oldNumHops),
-
-		NewNumPaths: uint8(len(newWayResult.Swaps)),
-		NewNumHops:  uint8(newNumHops),
-
-		InputAmount: newWayResult.InputAmount,
-		AmountInUsd: newWayResult.AmountInUsd,
-
+		RunningTime:     math.Max(responseTimeOfOriginalFetch.Seconds(), responseTimeOfNewWayFetch.Seconds()),
+		MaxHops:         8,
+		MaxPaths:        3,
+		MinPartUsd:      500,
+		OldNumPaths:     uint8(len(originalResult.Swaps)),
+		OldNumHops:      uint8(oldNumHops),
+		NewNumPaths:     uint8(len(newWayResult.Swaps)),
+		NewNumHops:      uint8(newNumHops),
+		InputAmount:     newWayResult.InputAmount,
 		OldOutputAmount: originalResult.OutputAmount,
 		NewOutputAmount: newWayResult.OutputAmount,
-
+		AmountInUsd:     newWayResult.AmountInUsd,
 		OldAmountOutUsd: originalResult.AmountOutUsd,
 		NewAmountOutUsd: newWayResult.AmountOutUsd,
 
-		Diff: diff,
+		OldGasUsd:     originalResult.GasUsd,
+		NewGasUsd:     newWayResult.GasUsd,
+		DiffInPercent: diff,
+		Diff:          newWayResult.AmountOutUsd - originalResult.AmountOutUsd,
 	}
 	db.Create(&result)
 	return nil
@@ -105,7 +103,7 @@ func main() {
 	newWayTest.Url = fetcher.BaseUrlV2
 
 	base18, _ := new(big.Int).SetString("1000000000000000000", 10)
-	for i := 900; i <= 1000; i++ {
+	for i := 1; i <= 100; i++ {
 		amountIn := new(big.Int).Mul(big.NewInt(int64(i)), base18).String()
 		originalTest.AmountIn = amountIn
 		newWayTest.AmountIn = amountIn

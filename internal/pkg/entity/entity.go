@@ -60,5 +60,9 @@ type TestResult struct {
 	OldAmountOutUsd float64 `json:"oldAmountOutUsd"`
 	NewAmountOutUsd float64 `json:"newAmountOutUsd"`
 
-	Diff float64
+	OldGasUsd float64 `json:"oldGasUsd"`
+	NewGasUsd float64 `json:"NewGasUsd"`
+
+	Diff          float64
+	DiffInPercent float64
 }
