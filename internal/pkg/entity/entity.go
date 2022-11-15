@@ -1,6 +1,21 @@
 package entity
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
+
+type FindRouteRequest struct {
+	TokenIn    string `form:"tokenIn" binding:"required"`
+	TokenOut   string `form:"tokenOut" binding:"required"`
+	AmountIn   string `form:"amountIn" binding:"required"`
+	SaveGas    string `form:"saveGas"`
+	Dexes      string `form:"dexes"`
+	GasInclude string `form:"gasInclude"`
+	GasPrice   string `form:"gasPrice"`
+	Debug      string `form:"debug"`
+}
 
 type Swap struct {
 	Pool              string      `json:"pool"`
@@ -24,15 +39,12 @@ type TokenInfo struct {
 	Decimals uint8   `json:"decimals"`
 }
 
-type FindRouteResponse struct {
+type RouteResponse struct {
 	InputAmount     string                 `json:"inputAmount"`
 	OutputAmount    string                 `json:"outputAmount"`
-	TotalGas        int64                  `json:"totalGas"`
-	GasPriceGwei    string                 `json:"gasPriceGwei"`
-	GasUsd          float64                `json:"gasUsd"`
+	MinOutputAmount string                 `json:"minOutputAmount"`
 	AmountInUsd     float64                `json:"amountInUsd"`
 	AmountOutUsd    float64                `json:"amountOutUsd"`
-	ReceivedUsd     float64                `json:"receivedUsd"`
 	Swaps           [][]Swap               `json:"swaps"`
 	Tokens          map[string]TokenInfo   `json:"tokens"`
 	EncodedSwapData string                 `json:"encodedSwapData,omitempty"`
@@ -42,27 +54,12 @@ type FindRouteResponse struct {
 
 type TestResult struct {
 	gorm.Model
-	RunningTime float64
-	MaxHops     uint8
-	MaxPaths    uint8
-	MinPartUsd  uint32
+	TokenIn, TokenOut string
+	AmountIn          string
 
-	OldNumPaths uint8
-	OldNumHops  uint8
-	NewNumPaths uint8
-	NewNumHops  uint8
-
-	InputAmount     string `json:"inputAmount"`
-	OldOutputAmount string `json:"oldOutputAmount"`
-	NewOutputAmount string `json:"newOutputAmount"`
-
-	AmountInUsd     float64 `json:"amountInUsd"`
-	OldAmountOutUsd float64 `json:"oldAmountOutUsd"`
-	NewAmountOutUsd float64 `json:"newAmountOutUsd"`
-
-	OldGasUsd float64 `json:"oldGasUsd"`
-	NewGasUsd float64 `json:"NewGasUsd"`
-
-	Diff          float64
-	DiffInPercent float64
+	V1TotalNumberOfSwaps, V2TotalNumberOfSwaps, V3TotalNumberOfSwaps int
+	V1AmountOut, V2AmountOut, V3AmountOut                            string
+	V1ResponseTime, V2ResponseTime, V3ResponseTime                   time.Duration
+	V1andV2Same                                                      bool
+	V3BetterThanV1                                                   bool
 }

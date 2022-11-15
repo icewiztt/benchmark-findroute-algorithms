@@ -4,63 +4,37 @@ import (
 	"encoding/json"
 	"time"
 
-	"benchmark-find-route/internal/pkg/entity"
 	"github.com/go-resty/resty/v2"
+
+	"benchmark-find-route/internal/pkg/entity"
 )
 
 const (
-	BaseUrl   = "http://localhost:8081/ethereum/route/encode"
-	BaseUrlV2 = "http://localhost:8080/ethereum/route/encode"
+	BaseUrlV1 = "http://localhost:8080/solana/route/"
+	BaseUrlV2 = "http://localhost:8081/solana/route/"
+	BaseUrlV3 = "http://localhost:8082/solana/route/"
 )
 
-type InputRequestParamFindRoute struct {
-	Url               string
-	TokenIn           string
-	TokenOut          string
-	AmountIn          string
-	SaveGas           uint8
-	GasInclude        uint8
-	SlippageTolerance uint8
-	Deadline          uint64
-	To                string
-	ChargeFeeBy       string
-	FeeReceiver       string
-	IsInBps           string
-	FeeAmount         string
-	ClientData        string
-}
 type FindRouteFetcher struct {
 	Client *resty.Client
-	*InputRequestParamFindRoute
+	Url    string
 }
 
-func NewFindRouteFetcher(
-	inputParams *InputRequestParamFindRoute,
-) *FindRouteFetcher {
+func NewFindRouteFetcher(url string) *FindRouteFetcher {
 	client := resty.New()
 	return &FindRouteFetcher{
-		Client:                     client,
-		InputRequestParamFindRoute: inputParams,
+		Client: client,
+		Url:    url,
 	}
 }
 
-func (f *FindRouteFetcher) Get() (*entity.FindRouteResponse, time.Duration, error) {
+func (f *FindRouteFetcher) Get(tokenIn, tokenOut, amountIn, dexes string) (*entity.RouteResponse, time.Duration, error) {
 	resp, err := f.Client.R().EnableTrace().
 		SetQueryParams(map[string]string{
-			"url":               f.Url,
-			"tokenIn":           f.TokenIn,
-			"tokenOut":          f.TokenOut,
-			"amountIn":          f.AmountIn,
-			"saveGas":           string(f.SaveGas),
-			"gasInclude":        string(f.GasInclude),
-			"slippageTolerance": string(f.SlippageTolerance),
-			"deadline":          string(f.Deadline),
-			"to":                f.To,
-			"chargeFeeBy":       f.ChargeFeeBy,
-			"feeReceiver":       f.FeeReceiver,
-			"isInBps":           f.IsInBps,
-			"feeAmount":         string(f.FeeAmount),
-			"clientData":        f.ClientData,
+			"tokenIn":  tokenIn,
+			"tokenOut": tokenOut,
+			"amountIn": amountIn,
+			// "dexes":    dexes,
 		}).SetHeader("Accept", "application/json").Get(f.Url)
 
 	if err != nil {
@@ -69,7 +43,7 @@ func (f *FindRouteFetcher) Get() (*entity.FindRouteResponse, time.Duration, erro
 	}
 
 	raw := resp.Body()
-	findRouteResponse := entity.FindRouteResponse{}
+	findRouteResponse := entity.RouteResponse{}
 	err = json.Unmarshal(raw, &findRouteResponse)
 	if err != nil {
 		return nil, 0, err

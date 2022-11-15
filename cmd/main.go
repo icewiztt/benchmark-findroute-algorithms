@@ -2,71 +2,70 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"math/big"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 
 	"benchmark-find-route/internal/pkg/entity"
 	"benchmark-find-route/internal/pkg/fetcher"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
-func Run(db *gorm.DB, originalTest, newWayTest fetcher.InputRequestParamFindRoute) error {
-	originalResult, responseTimeOfOriginalFetch, err := fetcher.NewFindRouteFetcher(&originalTest).Get()
-	newWayResult, responseTimeOfNewWayFetch, err := fetcher.NewFindRouteFetcher(&newWayTest).Get()
+func Run(db *gorm.DB, urlV1, urlV2, urlV3, tokenIn, tokenOut, amountIn, dexes string) error {
+	v1Result, v1responseTime, err := fetcher.NewFindRouteFetcher(urlV1).Get(tokenIn, tokenOut, amountIn, dexes)
+	v2Result, v2responseTime, err := fetcher.NewFindRouteFetcher(urlV2).Get(tokenIn, tokenOut, amountIn, dexes)
+	v3Result, v3responseTime, err := fetcher.NewFindRouteFetcher(urlV3).Get(tokenIn, tokenOut, amountIn, dexes)
 
-	oldResultAmountOut, _ := new(big.Float).SetString(originalResult.OutputAmount)
-	newResultAmountOut, _ := new(big.Float).SetString(newWayResult.OutputAmount)
+	v1ResultAmountOut, _ := new(big.Float).SetString(v1Result.OutputAmount)
+	v2ResultAmountOut, _ := new(big.Float).SetString(v2Result.OutputAmount)
+	v3ResultAmountOut, _ := new(big.Float).SetString(v3Result.OutputAmount)
 
 	if err != nil {
 		return err
 	}
 
-	diff, _ :=
-		new(big.Float).Mul(
-			new(big.Float).Quo(
-				new(big.Float).Sub(newResultAmountOut, oldResultAmountOut),
-				oldResultAmountOut,
-			), big.NewFloat(100.0)).Float64()
-
-	fmt.Println(originalResult.OutputAmount, newWayResult.OutputAmount, diff)
-
-	newNumHops := 0
-	for _, arr := range newWayResult.Swaps {
+	v1NumHops := 0
+	for _, arr := range v1Result.Swaps {
 		for range arr {
-			newNumHops++
+			v1NumHops++
 		}
 	}
 
-	oldNumHops := 0
-	for _, arr := range originalResult.Swaps {
+	v2NumHops := 0
+	for _, arr := range v2Result.Swaps {
 		for range arr {
-			oldNumHops++
+			v2NumHops++
 		}
 	}
+
+	v3NumHops := 0
+	for _, arr := range v3Result.Swaps {
+		for range arr {
+			v3NumHops++
+		}
+	}
+
+	fmt.Println(v1ResultAmountOut, v2ResultAmountOut, v3ResultAmountOut)
+	fmt.Println(v1NumHops, v2NumHops, v3NumHops)
+	fmt.Println(v1responseTime, v2responseTime, v3responseTime)
 
 	result := entity.TestResult{
-		RunningTime:     math.Max(responseTimeOfOriginalFetch.Seconds(), responseTimeOfNewWayFetch.Seconds()),
-		MaxHops:         entity.MaxHops,
-		MaxPaths:        entity.MaxPaths,
-		MinPartUsd:      500,
-		OldNumPaths:     uint8(len(originalResult.Swaps)),
-		OldNumHops:      uint8(oldNumHops),
-		NewNumPaths:     uint8(len(newWayResult.Swaps)),
-		NewNumHops:      uint8(newNumHops),
-		InputAmount:     newWayResult.InputAmount,
-		OldOutputAmount: originalResult.OutputAmount,
-		NewOutputAmount: newWayResult.OutputAmount,
-		AmountInUsd:     newWayResult.AmountInUsd,
-		OldAmountOutUsd: originalResult.AmountOutUsd,
-		NewAmountOutUsd: newWayResult.AmountOutUsd,
-
-		OldGasUsd:     originalResult.GasUsd,
-		NewGasUsd:     newWayResult.GasUsd,
-		DiffInPercent: diff,
-		Diff:          newWayResult.AmountOutUsd - originalResult.AmountOutUsd,
+		TokenIn:              tokenIn,
+		TokenOut:             tokenOut,
+		AmountIn:             amountIn,
+		V1TotalNumberOfSwaps: v1NumHops,
+		V2TotalNumberOfSwaps: v2NumHops,
+		V3TotalNumberOfSwaps: v3NumHops,
+		V1AmountOut:          v1ResultAmountOut.String(),
+		V2AmountOut:          v2ResultAmountOut.String(),
+		V3AmountOut:          v3ResultAmountOut.String(),
+		V1ResponseTime:       v1responseTime,
+		V2ResponseTime:       v2responseTime,
+		V3ResponseTime:       v3responseTime,
+		V1andV2Same:          v1ResultAmountOut.Cmp(v2ResultAmountOut) == 0,
+		V3BetterThanV1:       v3ResultAmountOut.Cmp(v1ResultAmountOut) > 0,
 	}
-	db.Create(&result)
+	db.Save(&result)
 	return nil
 }
 
@@ -77,36 +76,24 @@ func main() {
 	}
 
 	// Migrate the schema
-	db.AutoMigrate(&entity.TestResult{})
-
-	var (
-		test = fetcher.InputRequestParamFindRoute{
-			Url:      fetcher.BaseUrl,
-			TokenIn:  "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-			TokenOut: "0xdac17f958d2ee523a2206206994597c13d831ec7",
-			//AmountIn:          "1000000000000000000000",
-			AmountIn:          "1000000000000000000",
-			SaveGas:           0,
-			GasInclude:        0,
-			SlippageTolerance: 50,
-			Deadline:          2664879454,
-			To:                "0x7446c5C01b8E627cBD55702C81779671b3b00124",
-			ChargeFeeBy:       "",
-			FeeReceiver:       "",
-			IsInBps:           "",
-			FeeAmount:         "",
-			ClientData:        "ks",
+	err = db.AutoMigrate(&entity.TestResult{})
+	if err != nil {
+		panic("failed to migrate schema")
+	}
+	amountInList := []string{
+		"1000000",
+		"1000000000",
+		"1000000000000",
+		"1000000000000000",
+	}
+	for _, tokenIn := range entity.Tokens {
+		for _, tokenOut := range entity.Tokens {
+			if tokenIn != tokenOut {
+				for _, amountIn := range amountInList {
+					Run(db, fetcher.BaseUrlV1, fetcher.BaseUrlV2, fetcher.BaseUrlV3,
+						tokenIn, tokenOut, amountIn, entity.DefaultDexes)
+				}
+			}
 		}
-	)
-	originalTest := test
-	newWayTest := test
-	newWayTest.Url = fetcher.BaseUrlV2
-
-	base18, _ := new(big.Int).SetString("1000000000000000000", 10)
-	for i := entity.ForLoopFromAmountInETH; i <= entity.ForLoopToAmountInETH; i++ {
-		amountIn := new(big.Int).Mul(big.NewInt(int64(i)), base18).String()
-		originalTest.AmountIn = amountIn
-		newWayTest.AmountIn = amountIn
-		Run(db, originalTest, newWayTest)
 	}
 }
