@@ -16,9 +16,9 @@ func Run(db *gorm.DB, urlV1, urlV2, urlV3, tokenIn, tokenOut, amountIn, dexes st
 	v2Result, v2responseTime, err := fetcher.NewFindRouteFetcher(urlV2).Get(tokenIn, tokenOut, amountIn, dexes)
 	v3Result, v3responseTime, err := fetcher.NewFindRouteFetcher(urlV3).Get(tokenIn, tokenOut, amountIn, dexes)
 
-	v1ResultAmountOut, _ := new(big.Float).SetString(v1Result.OutputAmount)
-	v2ResultAmountOut, _ := new(big.Float).SetString(v2Result.OutputAmount)
-	v3ResultAmountOut, _ := new(big.Float).SetString(v3Result.OutputAmount)
+	v1ResultAmountOut, _ := new(big.Int).SetString(v1Result.OutputAmount, 10)
+	v2ResultAmountOut, _ := new(big.Int).SetString(v2Result.OutputAmount, 10)
+	v3ResultAmountOut, _ := new(big.Int).SetString(v3Result.OutputAmount, 10)
 
 	if err != nil {
 		return err
@@ -62,8 +62,8 @@ func Run(db *gorm.DB, urlV1, urlV2, urlV3, tokenIn, tokenOut, amountIn, dexes st
 		V1ResponseTime:       v1responseTime,
 		V2ResponseTime:       v2responseTime,
 		V3ResponseTime:       v3responseTime,
-		V1andV2Same:          v1ResultAmountOut.Cmp(v2ResultAmountOut) == 0,
-		V3BetterThanV1:       v3ResultAmountOut.Cmp(v1ResultAmountOut) > 0,
+		DiffV1V2:             new(big.Int).Sub(v2ResultAmountOut, v1ResultAmountOut).String(),
+		DiffV1V3:             new(big.Int).Sub(v3ResultAmountOut, v1ResultAmountOut).String(),
 	}
 	db.Save(&result)
 	return nil

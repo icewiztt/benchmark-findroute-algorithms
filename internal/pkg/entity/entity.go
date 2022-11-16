@@ -60,6 +60,5 @@ type TestResult struct {
 	V1TotalNumberOfSwaps, V2TotalNumberOfSwaps, V3TotalNumberOfSwaps int
 	V1AmountOut, V2AmountOut, V3AmountOut                            string
 	V1ResponseTime, V2ResponseTime, V3ResponseTime                   time.Duration
-	V1andV2Same                                                      bool
-	V3BetterThanV1                                                   bool
+	DiffV1V2, DiffV1V3                                               string
 }
